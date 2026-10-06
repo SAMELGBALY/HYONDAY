@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { CarProfile, DiagnosticResponse, DiagnosticCheckItem } from '../types/car';
+import { synthesizeClientDiagnosis } from '../utils/clientDiagnosticEngine';
 import {
   Send,
   Mic,
@@ -146,28 +147,40 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ currentCar }) => {
     try {
       const timer1 = setTimeout(() => {
         setLoadingStage('استخراج المواصفات الفنية والمصادر المعتمدة...');
-      }, 1200);
+      }, 1000);
 
-      const res = await fetch('/api/diagnose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: textToSubmit,
-          carProfile: currentCar,
-          attachedImageBase64: selectedImageBase64,
-          imageMimeType,
-          previousChecks: userChecks,
-        }),
-      });
+      let data: DiagnosticResponse | null = null;
+
+      try {
+        const res = await fetch('/api/diagnose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: textToSubmit,
+            carProfile: currentCar,
+            attachedImageBase64: selectedImageBase64,
+            imageMimeType,
+            previousChecks: userChecks,
+          }),
+        });
+
+        if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            data = await res.json();
+          }
+        }
+      } catch (fetchErr) {
+        console.warn('API route unreachable, using client catalog engine:', fetchErr);
+      }
 
       clearTimeout(timer1);
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'فشل إتمام التشخيص الفني');
+      // Fallback: Use client-side grounded catalog engine if server responded with non-JSON or error
+      if (!data) {
+        data = synthesizeClientDiagnosis(textToSubmit, currentCar);
       }
 
-      const data: DiagnosticResponse = await res.json();
       setResult(data);
 
       // Initialize check states
@@ -177,7 +190,9 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ currentCar }) => {
       });
       setUserChecks(initialChecks);
     } catch (err: any) {
-      setError(err.message || 'حدث خطأ غير متوقع');
+      // In ultimate emergency, use client synthesis
+      const fallback = synthesizeClientDiagnosis(textToSubmit, currentCar);
+      setResult(fallback);
     } finally {
       setIsLoading(false);
       setLoadingStage('');
