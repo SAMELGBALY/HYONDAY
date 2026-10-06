@@ -11,6 +11,7 @@ import {
   PRESET_CAR_PROFILES,
   PreloadedManualDoc,
 } from './src/data/carManualsData.ts';
+import { synthesizeClientDiagnosis } from './src/utils/clientDiagnosticEngine.ts';
 
 dotenv.config();
 
@@ -97,7 +98,11 @@ function detectSystemAndIntent(text: string) {
   const q = normalizeArabic(text);
 
   let system = 'general';
-  if (/زيت المحرك|زيت موتور|زيت الماتور|تغيير الزيت|حجم الزيت|سعة الزيت|لزوجة الزيت|فلتر الزيت|engine oil|motor oil/.test(q)) {
+  if (/ادور|دوار|داور|تدور|مارش|افصلها|تتاخر|تأخير|مش بتدور|صعوبة تشغيل|hot start|crank|start/.test(q)) {
+    system = 'starting_ignition_fuel';
+  } else if (/تقطيع|تنتيش|تفتفه|رعشه|بترعش|مكتومه|سحب|hesitation|misfire/.test(q)) {
+    system = 'ignition';
+  } else if (/زيت المحرك|زيت موتور|زيت الماتور|تغيير الزيت|حجم الزيت|سعة الزيت|لزوجة الزيت|فلتر الزيت|engine oil|motor oil/.test(q)) {
     system = 'engine_oil';
   } else if (/زيت الفتيس|زيت الجير|زيت ناقل الحركه|مانيوال|اتوماتيك|transmission|transaxle|gear oil|atf/.test(q)) {
     system = 'transmission_oil';
@@ -413,63 +418,8 @@ ${secondarySourcesString}
     }
 
     if (!response || !response.text) {
-      // Deterministic Manual Engine Fallback (guarantees answer from factory documents)
-      const primaryDoc = retrievedDocs[0] || MANUAL_DOCUMENTS[0];
-      const fallbackData = {
-        vehicleSummary: {
-          model: activeCar.model,
-          year: activeCar.year,
-          engine: activeCar.engine,
-          transmission: activeCar.transmission,
-        },
-        detectedSystem: detectedSys,
-        detectedIntent: detectedIntent,
-        primaryDiagnosis: `استخراج المواصفات والتشخيص المعتمد من كتالوج ${primaryDoc.vehicleModel} (${primaryDoc.chapter})`,
-        severityLevel: 'medium',
-        probableCauses: [
-          {
-            cause: `مطابقة بنود منظومة ${detectedSys}`,
-            probability: 'high',
-            explanation: `بناءً على نصوص الكتالوج المفهرسة، تتعلق المشكلة أو الاستفسار بفصل ${primaryDoc.chapter}.`,
-          },
-        ],
-        diagnosticChecks: [
-          {
-            id: 'check-1',
-            component: 'فحص المستوى والحالة الظاهرية',
-            action: 'مطابقة القيمة المقروءة مع حدود القياس المسموحة في الكتالوج.',
-            normalValue: 'ضمن النطاق القياسي للكتالوج',
-            faultIndicator: 'وجود نقص أو تهريب أو قراءة غير مطابقة',
-          },
-        ],
-        repairSteps: [
-          'اتباع الإجراءات المحددة في كتالوج الصيانة المعتمد.',
-          'التأكد من استخدام العزوم واللزوجة الصحيحة دون خلط بين السوائل.',
-        ],
-        safetyWarnings: [
-          'احذر من العمل على المحرك وسوائل التبريد أثناء سخونتها لتفادي خطر الحروق.',
-          'ارتدِ نظارات وقفازات الحماية وتأكد من ثبات السيارة ورفع فرامل اليد.',
-        ],
-        exactSpecs: [
-          {
-            parameter: 'المواصفة المستخرجة من الكتالوج',
-            value: primaryDoc.title,
-            note: `صفحة ${primaryDoc.page}`,
-          },
-        ],
-        manualReferences: retrievedDocs.map((d) => ({
-          manualName: d.vehicleModel + ' Service Manual',
-          section: d.chapter,
-          page: `ص ${d.page}`,
-          quote: d.title,
-        })),
-        secondarySources: TECHNICAL_SECONDARY_SOURCES.slice(0, 3),
-        mechanicTips: [
-          'احرص دائماً على عدم خلط زيت المحرك مع زيت الفتيس.',
-          'استخدم وردات طبه نحاس جديدة مع كل غيار زيت لمنع التسريب.',
-        ],
-      };
-
+      // High-precision diagnostic synthesizer (guarantees clear, accurate answer from factory documents)
+      const fallbackData = synthesizeClientDiagnosis(question || '', activeCar);
       return res.json(fallbackData);
     }
 
