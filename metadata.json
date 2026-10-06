@@ -1,0 +1,6 @@
+{
+  "name": "AutoDoc AI - كتالوج وتشخيص أعطال السيارات الفني",
+  "description": "مساعد فني ذكي لتشخيص أعطال السيارات واستخراج المواصفات الفنية وخطوات الصيانة المعتمدة بناء على كتالوج المصنع ومصادر فنية متقدمة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
