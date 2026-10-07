@@ -49,13 +49,14 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ currentCar }) => {
   const [userChecks, setUserChecks] = useState<Record<string, 'ok' | 'fault' | 'pending'>>({});
 
   const commonSymptomChips = [
+    'مركب إطارات 185/70 R13 ومحتاج أعرف أضرارها وبدائل السوق',
+    'تعديل لمبات الإضاءة العالية H4 والليد والكتاوت والأسعار',
     'العربية بتسخن في الزحمة والمروحة مش بتشتغل',
     'تقطيع وتنتيش عند الضغط على دواسة البنزين',
     'كمية وسعة زيت المحرك ولزوجته الموصى بها',
     'صعوبة تشغيل المحرك صباحاً على البارد',
     'عضة وصوت احتكاك في الغيار الثاني بالفتيس',
     'كود عطل P0300 ورعشة قوية في السلانسيه',
-    'خطوات تغيير زيت المحرك وعزم ربط الطبة',
   ];
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,6 +422,100 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ currentCar }) => {
               </div>
             )}
           </div>
+
+          {/* Mod Compatibility & Risk Evaluation Card */}
+          {result.modEvaluation && (
+            <div className="p-6 bg-slate-950/80 border-b border-slate-800 space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                  <h4 className="text-base font-bold text-white">
+                    تقييم التعديل والقطع المركبة (هل مناسبة وما هي أضرارها؟)
+                  </h4>
+                </div>
+                <span
+                  className={`text-xs px-3.5 py-1 rounded-full font-bold border ${
+                    result.modEvaluation.status === 'compatible'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : result.modEvaluation.status === 'conditional'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                      : 'bg-red-500/10 border-red-500/30 text-red-400'
+                  }`}
+                >
+                  {result.modEvaluation.statusText}
+                </span>
+              </div>
+
+              {/* Verdict */}
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-sm leading-relaxed text-slate-200">
+                <strong className="text-amber-400 block mb-1 text-xs">الرأي الهندسي المعتمد:</strong>
+                {result.modEvaluation.verdict}
+              </div>
+
+              {/* Pros vs Cons Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pros */}
+                {result.modEvaluation.pros && result.modEvaluation.pros.length > 0 && (
+                  <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
+                    <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <span>✓ المزايا والإيجابيات:</span>
+                    </div>
+                    <ul className="text-xs text-slate-300 space-y-1.5 list-disc list-inside leading-relaxed">
+                      {result.modEvaluation.pros.map((pro, i) => (
+                        <li key={i}>{pro}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Cons & Risks */}
+                {result.modEvaluation.consAndRisks && result.modEvaluation.consAndRisks.length > 0 && (
+                  <div className="p-4 rounded-xl bg-red-950/20 border border-red-500/30 space-y-2">
+                    <div className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                      <span>⚠️ الأضرار والسلبيات والآثار الجانبية:</span>
+                    </div>
+                    <ul className="text-xs text-slate-300 space-y-1.5 list-disc list-inside leading-relaxed">
+                      {result.modEvaluation.consAndRisks.map((con, i) => (
+                        <li key={i}>{con}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Best Recommendation */}
+              {result.modEvaluation.bestRecommendation && (
+                <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 text-xs text-blue-200 leading-relaxed">
+                  <strong className="text-blue-300 block mb-1 font-bold">💡 التوصية والبديل الهندسي الأفضل:</strong>
+                  {result.modEvaluation.bestRecommendation}
+                </div>
+              )}
+
+              {/* Market Options & Current Prices */}
+              {result.modEvaluation.marketOptionsAndPrices && result.modEvaluation.marketOptionsAndPrices.length > 0 && (
+                <div className="pt-2 space-y-3">
+                  <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <span className="text-amber-400">💰</span>
+                    <span>الخيارات المتاحة بالسوق والأسعار التقديرية الحالية (2026):</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {result.modEvaluation.marketOptionsAndPrices.map((opt, i) => (
+                      <div key={i} className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5 text-right">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-xs text-white">{opt.brandOrType}</span>
+                          <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                            {opt.estimatedPriceRange}
+                          </span>
+                        </div>
+                        {opt.notes && <p className="text-[11px] text-slate-400 leading-relaxed">{opt.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Probable Causes Breakdown */}
           {result.probableCauses && result.probableCauses.length > 0 && (

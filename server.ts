@@ -268,6 +268,7 @@ ${secondarySourcesString}
 5. جدول الفحوصات: اجعل الفحوصات عملية باللغة العربية خطوة بخطوة مع توضيح القيمة السليمة وقيمة العطل.
 6. توثيق المصادر: اذكر اسم كتالوج المصنع والباب ورقم الصفحة إن وجد، واذكر النشرة الفنية أو المعيار المعتمد بالعربية.
 7. إجراءات السلامة: اذكر تحذيرات السلامة اللازمة بالعربية (خطر الحروق عند فتح الردياتير أو تفريغ الزيت الساخن، فصل كابل البطارية، إلخ).
+8. استشارات التعديل والقطع والأسعار بالسوق: إذا سأل المستخدم عن تعديل أو قطعة بديلة (مثل مقاس إطارات 185/70/13 بدلاً من 175/70/13، أو لمبات إضاءة عالية H4، أو كتاوت، أو مساعدين)، املأ حقل modEvaluation بحكم صريح (مناسب / مشروط / ضار)، واذكر الأضرار والسلبيات، والمزايا، والبديل الأفضل، والماركات المتاحة في السوق المصري مع الأسعار التقريبية بالجنيه المصري (EGP).
 `;
 
     const contents: any[] = [];
@@ -394,6 +395,30 @@ ${secondarySourcesString}
                   items: { type: Type.STRING, description: 'نصيحة ميكانيكية باللغة العربية حصراً' },
                 },
                 preventiveAdvice: { type: Type.STRING, description: 'إرشاد وقائي باللغة العربية' },
+                modEvaluation: {
+                  type: Type.OBJECT,
+                  description: 'تقييم التعديلات وقطع الغيار والأسعار بالسوق المصري',
+                  properties: {
+                    status: { type: Type.STRING, description: 'compatible, conditional, or harmful' },
+                    statusText: { type: Type.STRING, description: 'حكم الملاءمة (مثال: مناسب بشروط ومحاذير، غير مناسب وضار، مناسب تماماً)' },
+                    verdict: { type: Type.STRING, description: 'الحكم الهندسي التفصيلي بالعربية' },
+                    pros: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'المزايا إن وُجدت' },
+                    consAndRisks: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'الأضرار والسلبيات والمخاطر الميكانيكية والكهربائية' },
+                    bestRecommendation: { type: Type.STRING, description: 'التوصية والبديل الهندسي الأفضل' },
+                    marketOptionsAndPrices: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          brandOrType: { type: Type.STRING, description: 'الماركة أو النوع المتوفر بالسوق' },
+                          estimatedPriceRange: { type: Type.STRING, description: 'السعر التقديري الحالي بالجنيه المصري EGP' },
+                          notes: { type: Type.STRING, description: 'ملاحظات الجودة والمواصفة' },
+                        },
+                        required: ['brandOrType', 'estimatedPriceRange'],
+                      },
+                    },
+                  },
+                },
               },
               required: [
                 'vehicleSummary',

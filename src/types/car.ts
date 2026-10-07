@@ -64,6 +64,21 @@ export interface DiagnosticResponse {
   secondarySources: SecondarySourceReference[];
   mechanicTips: string[];
   preventiveAdvice?: string;
+  modEvaluation?: ModEvaluation;
+}
+
+export interface ModEvaluation {
+  status: 'compatible' | 'conditional' | 'harmful';
+  statusText: string;
+  verdict: string;
+  pros: string[];
+  consAndRisks: string[];
+  bestRecommendation: string;
+  marketOptionsAndPrices: {
+    brandOrType: string;
+    estimatedPriceRange: string;
+    notes: string;
+  }[];
 }
 
 export interface CarSpecificationCategory {
