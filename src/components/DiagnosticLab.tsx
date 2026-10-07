@@ -141,6 +141,7 @@ export const DiagnosticLab: React.FC<DiagnosticLabProps> = ({ currentCar }) => {
     if (!textToSubmit.trim() && !selectedImageBase64) return;
 
     setIsLoading(true);
+    setResult(null);
     setError(null);
     setLoadingStage('جاري مطابقة نصوص كتالوج المصنع وفهرس BM25 الفني...');
 

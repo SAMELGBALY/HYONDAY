@@ -187,7 +187,7 @@ function retrieveManualDocs(question: string, carModel?: string): PreloadedManua
 // --- API ROUTES ---
 
 // 1. Diagnose Problem with Gemini 3.8 Flash + Service Manual Grounding + Secondary Sources
-app.post('/api/diagnose', async (req, res) => {
+app.post(['/api/diagnose', '/diagnose'], async (req, res) => {
   try {
     const {
       question,

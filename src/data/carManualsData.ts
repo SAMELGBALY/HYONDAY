@@ -1,4 +1,4 @@
-import { CarProfile, OBDCodeInfo, CarSpecificationCategory } from '../types/car';
+import { CarProfile, OBDCodeInfo, CarSpecificationCategory } from '../types/car.ts';
 
 export interface PreloadedManualDoc {
   id: string;
