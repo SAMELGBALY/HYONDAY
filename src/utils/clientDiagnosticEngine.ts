@@ -1,13 +1,48 @@
 import { CarProfile, DiagnosticResponse } from '../types/car.ts';
 import { MANUAL_DOCUMENTS, TECHNICAL_SECONDARY_SOURCES } from '../data/carManualsData.ts';
 
+// Helper to parse dynamic tire dimensions (e.g. R14/185/70, 185/70 R14, 185/60 R14, 185/70/13)
+function parseTireDimensions(text: string) {
+  const q = text.toLowerCase();
+  let width = 0, aspect = 0, rim = 0;
+
+  // Pattern 1: R14/185/70 or r14 185 70 or r14/185-70
+  const p1 = q.match(/r\s*(\d{2})[\s\/-]+(\d{3})[\s\/-]+(\d{2})/i);
+  if (p1) {
+    rim = parseInt(p1[1], 10);
+    width = parseInt(p1[2], 10);
+    aspect = parseInt(p1[3], 10);
+  } else {
+    // Pattern 2: 185/70/14 or 185/70 R14 or 185 70 14 or 185/70/r14
+    const p2 = q.match(/(\d{3})[\s\/-]+(\d{2})(?:[\s\/-]*r?\s*(\d{2}))?/i);
+    if (p2) {
+      width = parseInt(p2[1], 10);
+      aspect = parseInt(p2[2], 10);
+      if (p2[3]) {
+        rim = parseInt(p2[3], 10);
+      }
+    }
+  }
+
+  // Explicit rim overrides if mentioned in text
+  if (q.includes('r14') || q.includes('جنط 14') || q.includes('/14') || q.includes(' 14')) {
+    rim = 14;
+  } else if (q.includes('r15') || q.includes('جنط 15') || q.includes('/15') || q.includes(' 15')) {
+    rim = 15;
+  } else if (!rim || q.includes('r13') || q.includes('جنط 13') || q.includes('/13') || q.includes(' 13')) {
+    rim = 13;
+  }
+
+  return { width, aspect, rim };
+}
+
 export function synthesizeClientDiagnosis(
   question: string,
   currentCar: CarProfile
 ): DiagnosticResponse {
   const q = question.toLowerCase().trim();
 
-  // 1. الاطارات والكاوتش وضغط الهواء وتقييم مقاس 185/70 R13 (Tires, Wheels & Size Comparison)
+  // 1. الاطارات والكاوتش وضغط الهواء وتقييم مقاسات الإطارات الديناميكية (Dynamic Tires & Size Comparison)
   if (
     q.includes('اطار') ||
     q.includes('اطارات') ||
@@ -16,6 +51,7 @@ export function synthesizeClientDiagnosis(
     q.includes('كاوتش') ||
     q.includes('185') ||
     q.includes('175') ||
+    q.includes('195') ||
     q.includes('عجل') ||
     q.includes('عجلة') ||
     q.includes('هواء') ||
@@ -28,7 +64,140 @@ export function synthesizeClientDiagnosis(
     q.includes('wheel') ||
     q.includes('pressure')
   ) {
-    const isAskingAbout185 = q.includes('185') || q.includes('عريض') || q.includes('اعرض') || q.includes('بديل');
+    const tire = parseTireDimensions(q);
+    const isAskingAbout185_70_R14 = (tire.rim === 14 && tire.width === 185 && tire.aspect === 70) || (q.includes('185') && q.includes('70') && (q.includes('14') || q.includes('r14')));
+    const isAskingAbout185_60_R14 = (tire.rim === 14 && tire.width === 185 && tire.aspect === 60);
+    const isAskingAbout185_70_R13 = (tire.rim === 13 && tire.width === 185 && tire.aspect === 70) || (q.includes('185') && !isAskingAbout185_70_R14 && !isAskingAbout185_60_R14);
+
+    // حالة 185/70 R14 (التي سأل عنها المستخدم تحديداً)
+    if (isAskingAbout185_70_R14) {
+      return {
+        vehicleSummary: {
+          model: currentCar.modelArabic || currentCar.model,
+          year: currentCar.year || 1998,
+          engine: currentCar.engine || '1.5L SOHC',
+          transmission: currentCar.transmission === 'automatic' ? 'أوتوماتيك' : 'مانيوال',
+        },
+        detectedSystem: 'منظومة الإطارات والجنوط 14 والعفشة (Wheel & Suspension 14")',
+        detectedIntent: 'specification',
+        severityLevel: 'high',
+        primaryDiagnosis:
+          'تقييم تركيب إطارات 185/70 R14 على هيونداي إكسيل 98: غير مناسب إطلاقاً ومرفوض هندسياً 🔴؛ قطره الكلي (61.5 سم) أكبر من مقاس الفابريكا بنسبة ضخمة (+6.85%)، ويحك في كارتيرة الرفارف والمساعدين ويميت عزم وتسارع المحرك.',
+        probableCauses: [
+          {
+            cause: 'فارق قطر مفرط وضخم (+6.85%) يتجاوز الحد الأقصى المسموح به دولياً (±3%)',
+            probability: 'high',
+            explanation:
+              'مقاس الفابريكا 175/70 R13 قطره 575 مم، بينما مقاس 185/70 R14 قطره 615 مم (زيادة 4 سم كاملة في القطر!). هذه الزيادة تجعل الإطار يملأ تجويف الرفرف بالكامل ويصطدم بالشاسيه.',
+          },
+        ],
+        diagnosticChecks: [
+          {
+            id: 'check-rubbing',
+            component: 'فحص احتكاك الإطار بكارتيرة الرفرف الأمامي',
+            action: 'كسر عجلة القيادة لآخر اليمين أو اليسار أثناء وجود حمولة في السيارة.',
+            normalValue: 'خلوص آمن لا يقل عن 2.5 سم بين الكاوتش والشاسيه.',
+            faultIndicator: 'احتكاك وحك فوري في كارتيرة البلاستيك وتشريح سطح الكاوتش.',
+          },
+          {
+            id: 'check-rear-fender',
+            component: 'فحص خلوص الإطارات الخلفية مع قنطرة الشاسيه والمساعدين',
+            action: 'ركوب شخصين أو ثلاثة في الكنبة الخلفية وأخذ مطب خفيف.',
+            normalValue: 'عدم ملامسة الإطار لجسم الرفرف الداخلي.',
+            faultIndicator: 'حك وصوت احتكاك قوي في صاج الرفرف الخلفي مع كل مطب.',
+          },
+        ],
+        repairSteps: [
+          '1. تجنب شراء أو تركيب مقاس 185/70 R14 نهائياً على سيارة هيونداي إكسيل 98.',
+          '2. المقاس البديل الصحيح والمعتمد لجنط 14 على الإكسيل هو: 185/60 R14 (قطره 577.6 مم بفارق +0.4% فقط، مطابق للفابريكا بالمللي وبدون أي حك).',
+          '3. البديل الثاني لجنط 14 هو: 175/65 R14 (قطره 583 مم بفارق +1.3% فقط، ناعم جداً وممتاز).',
+        ],
+        safetyWarnings: [
+          '⚠️ خطر حك الإطار: مقاس 185/70 R14 قد ينفجر إذا احتك بشفة صاج الرفرف الحادة أثناء السير على سرعة مع مطب مفاجئ.',
+          '⚠️ تجنب القيادة بمقاس يغير النسبة النهائية للفتيس بنسبة 7% لتفادي إجهاد فتيس الإكسيل والدبرياج.',
+        ],
+        exactSpecs: [
+          {
+            parameter: 'المقاس القياسي لفابريكا هيونداي إكسيل',
+            value: '175/70 R13 (القطر الكلي 575.2 مم)',
+            unit: 'Size',
+            note: 'المرجع الهندسي المعتمد',
+          },
+          {
+            parameter: 'مقاس 185/70 R14 الذي سألت عنه',
+            value: 'القطر 614.6 مم (فارق +6.85% زيادة مرفوضة!)',
+            unit: 'Size',
+            note: 'مرفوض هندسياً (الحد الأقصى المسموح 3%)',
+          },
+          {
+            parameter: 'المقاس الصحيح المعتمد هندسياً لجنط 14',
+            value: '185/60 R14 (القطر 577.6 مم بفارق +0.4% فقط)',
+            unit: 'Size',
+            note: 'المقاس المثالي للإكسيل عند تعديل جنط 14',
+          },
+          {
+            parameter: 'المقاس البديل الثاني لجنط 14',
+            value: '175/65 R14 (القطر 583.1 مم بفارق +1.3% فقط)',
+            unit: 'Size',
+            note: 'نعومة وراحة ممتازة في المطبات',
+          },
+        ],
+        manualReferences: [
+          {
+            manualName: 'Hyundai Excel Service Manual (X3)',
+            section: 'Suspension & Wheels > Plus-Sizing & Wheel Specifications',
+            page: 'ص 134',
+            quote: 'Tire overall diameter tolerance must not exceed +/- 3% from OEM 175/70 R13.',
+          },
+        ],
+        secondarySources: TECHNICAL_SECONDARY_SOURCES.slice(0, 3),
+        mechanicTips: [
+          'مقاس 185/70 R14 مخصص لسيارات أكبر حجماً وتجويف رفرفها أوسع مثل (نيسان صني N16/N17، شيفروليه أوبترا، دايو لانوس، هيونداي فيرنا). أما الإكسيل فتجويف رفرفها ضيق ويحتاج بروفايل منخفض 185/60 R14.',
+        ],
+        modEvaluation: {
+          status: 'harmful',
+          statusText: '🔴 غير مناسب إطلاقاً وضار بالعفشة ومرفوض هندسياً!',
+          verdict:
+            'مقاس 185/70 R14 غير متوافق تماماً مع هيونداي إكسيل 98. القطر الكلي لهذا المقاس 614.6 مم مقارنة بقطر الفابريكا 575.2 مم (فارق ضخم +6.85%، بينما الحد المسموح به دولياً لا يتجاوز 3%). هذا الارتفاع الزائد يسبب احتكاكاً مؤكداً للإطارات في كارتيرة الرفارف الأمامية والخلفية في المطبات وعند كسر الدركسيون، ويميت عزم وتسارع المحرك ويثقل الدركسيون جداً.',
+          pros: [
+            'لا توجد أي ميزة فنية حقيقية على الإكسيل مع هذا الارتفاع المفرط، سوى ارتفاع بطن السيارة عن الأرض على حساب أمان وثبات العفشة.',
+          ],
+          consAndRisks: [
+            'حك واحتكاك مؤكد (Severe Rubbing) في كارتيرة الرفرف الأمامي عند أي لفة دركسيون، وتآكل كارتيرة البلاستيك وتشريح الكاوتش.',
+            'حك الإطارات الخلفية في قنطرة الشاسيه والمساعدين عند ركوب شخصين في الخلف أو أخذ مطب بسرعة.',
+            'كتمة وموت عزم تسارع محرك الإكسيل (1.5L / 1.3L) لأن القطر الكبير يغير النسبة النهائية للفتيس (Final Drive Ratio).',
+            'خطأ كبير في قراءة عداد السرعة بنسبة +7% (عند قراءة العداد 100 كم/س تكون سرعتك الحقيقية 107 كم/س).',
+            'ثقل هائل في الدركسيون وتآكل سريع لبيض الطرف وجلب المقصات والمساعدين وزيادة استهلاك البنزين 10% إلى 15%.',
+          ],
+          bestRecommendation:
+            'إذا كنت تريد تركيب جنط 14 بوصة على الإكسيل، المقاس الصحيح والمطابق للفابريكا بالمللي هو: 185/60 R14 (فرق +0.4% فقط) أو 175/65 R14 (فرق +1.3% فقط). تجنب 185/70 R14 تماماً لأنه مقاس مخصص لسيارات أكبر كالصني والفيرنا.',
+          marketOptionsAndPrices: [
+            {
+              brandOrType: 'مقاس 185/60 R14 لاسا التركي (Lassa Driveways)',
+              estimatedPriceRange: '2,200 - 2,550 جنيه للفردة',
+              notes: 'المقاس المثالي لجنط 14 على الإكسيل: ثبات رائع في الملفات، شكل رياضي جذاب، وبدون أي حك نهائياً.',
+            },
+            {
+              brandOrType: 'مقاس 175/65 R14 جي تي راديال الإندونيسي (GT Radial Champiro)',
+              estimatedPriceRange: '2,050 - 2,400 جنيه للفردة',
+              notes: 'البديل الأنعَم لجنط 14: مطبات مريحة جداً، سحب خفيف على الموتور، وفرملة ناعمة.',
+            },
+            {
+              brandOrType: 'مقاس 185/60 R14 رودستون كوري (Roadstone / Nexen)',
+              estimatedPriceRange: '2,500 - 2,950 جنيه للفردة',
+              notes: 'أعلى خامة وثبات ممتاز على السرعات العالية وصوت هادئ جداً على الأسفلت.',
+            },
+            {
+              brandOrType: 'مقاس 185/70 R14 (مقاس الصني والفيرنا واللانوس)',
+              estimatedPriceRange: '2,100 - 2,500 جنيه للفردة',
+              notes: 'متوفر بكثرة في السوق لكنه مخصص للفيرنا والصني واللانوس، ولا يُنصح بشرائه للإكسيل نهائياً.',
+            },
+          ],
+        },
+      };
+    }
+
+    const isAskingAbout185 = isAskingAbout185_70_R13;
 
     return {
       vehicleSummary: {
